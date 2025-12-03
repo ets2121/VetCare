@@ -30,19 +30,15 @@ export async function login(formData: FormData) {
     await supabase.auth.signOut(); // Log out if user record not found
     return { error: 'User data not found.' };
   }
+  
+  if (userData.role !== 'CUSTOMER') {
+     await supabase.auth.signOut();
+     return { error: 'Invalid credentials for this login form.' };
+  }
+
 
   revalidatePath('/', 'layout');
-
-  switch (userData.role) {
-    case 'SUPER_ADMIN':
-      redirect('/super-admin/dashboard');
-    case 'ADMIN':
-      redirect('/admin/dashboard');
-    case 'CUSTOMER':
-      redirect('/dashboard');
-    default:
-      redirect('/login');
-  }
+  redirect('/dashboard');
 }
 
 export async function signup(formData: FormData) {
@@ -75,7 +71,10 @@ export async function signup(formData: FormData) {
 
   if (insertError) {
     // If user insertion fails, it's a good practice to delete the auth user to keep things clean
-    await supabase.auth.admin.deleteUser(signUpData.user.id);
+    const { data, error } = await supabase.auth.admin.deleteUser(signUpData.user.id);
+    if (error) {
+        console.error('Failed to delete user from auth:', error);
+    }
     return { error: 'Could not create user profile.' };
   }
 
