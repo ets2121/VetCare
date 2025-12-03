@@ -11,17 +11,38 @@ export async function login(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  if (error) {
+  if (authError || !authData.user) {
     return { error: 'Could not authenticate user. Please check your credentials.' };
   }
 
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('role')
+    .eq('user_id', authData.user.id)
+    .single();
+
+  if (userError || !userData) {
+    await supabase.auth.signOut(); // Log out if user record not found
+    return { error: 'User data not found.' };
+  }
+
   revalidatePath('/', 'layout');
-  redirect('/dashboard');
+
+  switch (userData.role) {
+    case 'SUPER_ADMIN':
+      redirect('/super-admin/dashboard');
+    case 'ADMIN':
+      redirect('/admin/dashboard');
+    case 'CUSTOMER':
+      redirect('/dashboard');
+    default:
+      redirect('/login');
+  }
 }
 
 export async function signup(formData: FormData) {
@@ -30,7 +51,7 @@ export async function signup(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const { error } = await supabase.auth.signUp({
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -38,8 +59,24 @@ export async function signup(formData: FormData) {
     },
   });
 
-  if (error) {
+  if (signUpError || !signUpData.user) {
     return { error: 'Could not sign up user. This email may already be in use.' };
+  }
+
+  // Insert user into public.users table
+  const { error: insertError } = await supabase.from('users').insert({
+    user_id: signUpData.user.id,
+    email: email,
+    // You might want to get username and full_name from the form as well
+    username: email.split('@')[0], 
+    full_name: '',
+    role: 'CUSTOMER',
+  });
+
+  if (insertError) {
+    // If user insertion fails, it's a good practice to delete the auth user to keep things clean
+    await supabase.auth.admin.deleteUser(signUpData.user.id);
+    return { error: 'Could not create user profile.' };
   }
 
   revalidatePath('/', 'layout');

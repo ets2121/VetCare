@@ -118,6 +118,12 @@ export function SignupForm() {
             Login
           </Link>
         </p>
+         <p className="text-center text-sm text-muted-foreground">
+          Are you an admin?{' '}
+          <Link href="/admin/login" className="font-semibold text-accent hover:underline">
+            Admin Login
+          </Link>
+        </p>
       </form>
     </Form>
   );

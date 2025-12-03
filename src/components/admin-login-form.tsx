@@ -17,14 +17,13 @@ import { login } from '@/app/auth/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
-import Link from 'next/link';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
-export function LoginForm() {
+export function AdminLoginForm() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -64,7 +63,7 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Email Address</FormLabel>
               <FormControl>
-                <Input placeholder="you@example.com" {...field} />
+                <Input placeholder="admin@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -92,20 +91,6 @@ export function LoginForm() {
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Login
         </Button>
-        <div className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground">
-          <p>
-            Don't have an account?{' '}
-            <Link href="/signup" className="font-semibold text-accent hover:underline">
-              Sign up
-            </Link>
-          </p>
-          <p>
-            Are you an admin?{' '}
-            <Link href="/admin/login" className="font-semibold text-accent hover:underline">
-              Admin Login
-            </Link>
-          </p>
-        </div>
       </form>
     </Form>
   );
