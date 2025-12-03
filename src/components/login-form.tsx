@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { login } from '@/app/auth/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 

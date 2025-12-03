@@ -112,18 +112,20 @@ export function SignupForm() {
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Create Account
         </Button>
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-accent hover:underline">
-            Login
-          </Link>
-        </p>
-         <p className="text-center text-sm text-muted-foreground">
-          Are you an admin?{' '}
-          <Link href="/admin/login" className="font-semibold text-accent hover:underline">
-            Admin Login
-          </Link>
-        </p>
+        <div className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground">
+          <p>
+            Already have an account?{' '}
+            <Link href="/login" className="font-semibold text-accent hover:underline">
+              Login
+            </Link>
+          </p>
+           <p>
+            Are you an admin?{' '}
+            <Link href="/admin/login" className="font-semibold text-accent hover:underline">
+              Admin Login
+            </Link>
+          </p>
+        </div>
       </form>
     </Form>
   );
