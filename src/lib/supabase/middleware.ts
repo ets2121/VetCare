@@ -63,6 +63,9 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Define public routes that are always accessible
+  const publicRoutes = ['/login', '/signup', '/admin/login', '/auth/confirm'];
+
   if (user) {
     const { data: userData } = await supabase
       .from('users')
@@ -72,18 +75,20 @@ export async function updateSession(request: NextRequest) {
 
     const userRole = userData?.role;
 
-    // Logged-in users should not see auth pages
-    if (pathname === '/login' || pathname === '/signup' || pathname === '/admin/login') {
-      if (userRole === 'SUPER_ADMIN') {
-        return NextResponse.redirect(new URL('/super-admin/dashboard', request.url))
-      }
-      if (userRole === 'ADMIN') {
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-      }
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    // If user is logged in, redirect them from auth pages to the appropriate dashboard
+    if (publicRoutes.includes(pathname)) {
+        if (userRole === 'SUPER_ADMIN') {
+            return NextResponse.redirect(new URL('/super-admin/dashboard', request.url))
+        }
+        if (userRole === 'ADMIN') {
+            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+        }
+        if (userRole === 'CUSTOMER') {
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
     }
 
-    // Role-based route protection
+    // Role-based route protection for protected routes
     if (pathname.startsWith('/admin') && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
@@ -100,11 +105,14 @@ export async function updateSession(request: NextRequest) {
     }
 
   } else {
-    // Logged-out users are redirected to login pages if trying to access protected routes
-    const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/super-admin');
-    if (isProtected) {
-      const url = pathname.startsWith('/admin') || pathname.startsWith('/super-admin') ? '/admin/login' : '/login';
-      return NextResponse.redirect(new URL(url, request.url))
+    // If user is not logged in, protect all routes except public ones
+    const isProtectedRoute = !publicRoutes.includes(pathname) && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/super-admin'));
+    if (isProtectedRoute) {
+        let loginUrl = '/login';
+        if (pathname.startsWith('/admin') || pathname.startsWith('/super-admin')) {
+            loginUrl = '/admin/login';
+        }
+        return NextResponse.redirect(new URL(loginUrl, request.url));
     }
   }
 
