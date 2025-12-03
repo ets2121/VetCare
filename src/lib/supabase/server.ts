@@ -9,6 +9,9 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
     {
+      db: {
+        schema: 'public',
+      },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value
