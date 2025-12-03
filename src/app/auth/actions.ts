@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-
+import * as bcrypt from 'bcrypt';
 import { createClient } from '@/lib/supabase/server';
 
 export async function login(formData: FormData) {
@@ -46,6 +46,9 @@ export async function signup(formData: FormData) {
   
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
+  const saltRounds = 10;
+  const password_hash = await bcrypt.hash(password, saltRounds);
+
 
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
@@ -56,14 +59,20 @@ export async function signup(formData: FormData) {
   });
 
   if (signUpError || !signUpData.user) {
-    return { error: 'Could not sign up user. This email may already be in use.' };
+    // If sign up with Supabase Auth fails, we don't proceed.
+    // This could be because the email is already in use in auth.users.
+    if (signUpError && signUpError.message.includes('already exists')) {
+         return { error: 'Could not sign up user. This email may already be in use.' };
+    }
+    return { error: 'Could not sign up user. ' + (signUpError?.message || 'An unknown error occurred.') };
   }
+
 
   // Insert user into public.users table
   const { error: insertError } = await supabase.from('users').insert({
     user_id: signUpData.user.id,
     email: email,
-    // You might want to get username and full_name from the form as well
+    password_hash,
     username: email.split('@')[0], 
     full_name: '',
     role: 'CUSTOMER',
@@ -71,10 +80,8 @@ export async function signup(formData: FormData) {
 
   if (insertError) {
     // If user insertion fails, it's a good practice to delete the auth user to keep things clean
-    const { data, error } = await supabase.auth.admin.deleteUser(signUpData.user.id);
-    if (error) {
-        console.error('Failed to delete user from auth:', error);
-    }
+    await supabase.auth.admin.deleteUser(signUpData.user.id);
+    console.error('Failed to insert user into public.users:', insertError);
     return { error: 'Could not create user profile.' };
   }
 
