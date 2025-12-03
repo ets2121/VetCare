@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-dog",
+      "description": "A happy golden retriever sitting in a field of grass.",
+      "imageUrl": "https://images.unsplash.com/photo-1559190394-df5a28aab5c5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxoYXBweSUyMGRvZ3xlbnwwfHx8fDE3NjQ3MzA1ODF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "happy dog"
+    },
+    {
+      "id": "service-exam",
+      "description": "A veterinarian listening to a cat's heartbeat with a stethoscope.",
+      "imageUrl": "https://images.unsplash.com/photo-1728013274420-ed02b1f58887?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx2ZXRlcmluYXJpYW4lMjBjYXR8ZW58MHx8fHwxNzY0NjkxNjMyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "veterinarian cat"
+    },
+    {
+      "id": "service-vaccine",
+      "description": "A small puppy looking up, ready for its vaccination.",
+      "imageUrl": "https://images.unsplash.com/photo-1619980201524-2f237decc377?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwdXBweSUyMGN1dGV8ZW58MHx8fHwxNzY0NzUwNzkxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "puppy cute"
+    },
+    {
+      "id": "service-dental",
+      "description": "A close-up of a dog's clean teeth.",
+      "imageUrl": "https://images.unsplash.com/photo-1627759186607-b8a8ba4ed86e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkb2clMjB0ZWV0aHxlbnwwfHx8fDE3NjQ3NTA3OTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dog teeth"
+    },
+    {
+      "id": "service-surgery",
+      "description": "A veterinarian in a clean, modern surgical room.",
+      "imageUrl": "https://images.unsplash.com/photo-1728013274420-ed02b1f58887?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx2ZXRlcmluYXJ5JTIwc3VyZ2VyeXxlbnwwfHx8fDE3NjQ3NTA3OTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "veterinary surgery"
+    },
+    {
+      "id": "about-us",
+      "description": "A smiling team of veterinarians and staff.",
+      "imageUrl": "https://images.unsplash.com/photo-1713160848421-bd49a21b09ae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx2ZXRlcmluYXJ5JTIwdGVhbXxlbnwwfHx8fDE3NjQ3NTA3OTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "veterinary team"
+    }
+  ]
 }
