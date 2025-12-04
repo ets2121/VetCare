@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     .from('users')
     .select('user_id, email, password_hash, role, brand_id, branch_id')
     .eq('email', email)
+    .eq('brand_id', process.env.BRAND_ID!)
     .single();
 
   if (userError || !userData) {

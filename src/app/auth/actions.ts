@@ -19,6 +19,7 @@ export async function login(formData: FormData) {
     .from('users')
     .select('user_id, password_hash, role, brand_id, branch_id')
     .eq('email', email)
+    .eq('brand_id', process.env.BRAND_ID!)
     .single();
 
   if (userError || !user) {
@@ -54,12 +55,8 @@ export async function signup(formData: FormData) {
   const saltRounds = 10;
   const password_hash = await bcrypt.hash(password, saltRounds);
 
-  // For now, let's assign a default brand_id. In a multi-tenant app, this would
-  // come from the context of the signup form (e.g., a subdomain or a selection).
-  // I will check the database for an existing brand and use it.
-  const { data: brand } = await supabase.from('brands').select('brand_id').limit(1).single();
-  if (!brand) {
-      return { error: 'Could not create user profile. No brand available.' };
+  if (!process.env.BRAND_ID) {
+    return { error: 'Application is not configured with a brand ID.' };
   }
 
   const { data: newUser, error: insertError } = await supabase.from('users').insert({
@@ -68,7 +65,7 @@ export async function signup(formData: FormData) {
     username: email.split('@')[0], 
     full_name: '',
     role: 'CUSTOMER',
-    brand_id: brand.brand_id,
+    brand_id: process.env.BRAND_ID,
   }).select('user_id, role, brand_id, branch_id').single();
 
   if (insertError || !newUser) {
