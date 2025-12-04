@@ -13,11 +13,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signup } from '@/app/auth/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z
   .object({
@@ -33,6 +33,7 @@ const formSchema = z
 export function SignupForm() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,18 +46,27 @@ export function SignupForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     startTransition(async () => {
-      const formData = new FormData();
-      formData.append('email', values.email);
-      formData.append('password', values.password);
+      const response = await fetch('/api/user/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email, password: values.password }),
+      });
 
-      const result = await signup(formData);
+      const result = await response.json();
 
-      if (result?.error) {
+      if (!response.ok) {
         toast({
           title: 'Sign Up Failed',
-          description: result.error,
+          description: result.error || 'An unexpected error occurred.',
           variant: 'destructive',
         });
+      } else {
+        toast({
+          title: 'Sign Up Successful',
+          description: 'Redirecting to your dashboard...',
+        });
+        router.push(result.redirectUrl);
+        router.refresh();
       }
     });
   }

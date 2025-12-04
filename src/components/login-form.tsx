@@ -13,11 +13,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { login } from '@/app/auth/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -27,6 +27,7 @@ const formSchema = z.object({
 export function LoginForm() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,18 +39,27 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     startTransition(async () => {
-      const formData = new FormData();
-      formData.append('email', values.email);
-      formData.append('password', values.password);
+      const response = await fetch('/api/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
 
-      const result = await login(formData);
+      const result = await response.json();
 
-      if (result?.error) {
+      if (!response.ok) {
         toast({
           title: 'Login Failed',
-          description: result.error,
+          description: result.error || 'An unexpected error occurred.',
           variant: 'destructive',
         });
+      } else {
+        toast({
+          title: 'Login Successful',
+          description: 'Redirecting to your dashboard...',
+        });
+        router.push(result.redirectUrl);
+        router.refresh();
       }
     });
   }
