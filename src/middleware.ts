@@ -8,6 +8,11 @@ export async function middleware(request: NextRequest) {
   const { isLoggedIn, role } = session;
   const { pathname } = request.nextUrl;
 
+  // Exclude API routes from middleware processing
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   const publicRoutes = ['/', '/login', '/signup', '/admin/login'];
   const isPublicRoute = publicRoutes.includes(pathname) || pathname === '/auth/confirm';
 
@@ -23,7 +28,7 @@ export async function middleware(request: NextRequest) {
     if (role === 'SUPER_ADMIN') userDashboard = superAdminDashboard;
 
     // If logged-in user is trying to access a public page (like /login), redirect to their dashboard
-    if (isPublicRoute) {
+    if (isPublicRoute && pathname !== '/') { // Allow access to homepage
       return NextResponse.redirect(new URL(userDashboard, request.url));
     }
 
