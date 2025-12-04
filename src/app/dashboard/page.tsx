@@ -20,6 +20,7 @@ export default async function DashboardPage() {
     .single();
 
   if (!userProfile) {
+    session.destroy();
     redirect('/login');
   }
   

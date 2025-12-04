@@ -72,7 +72,7 @@ export async function signup(formData: FormData) {
   }).select('user_id, role, brand_id, branch_id').single();
 
   if (insertError || !newUser) {
-    if (insertError.message.includes('unique constraint')) {
+    if (insertError?.message.includes('unique constraint')) {
       return { error: 'Could not sign up user. This email may already be in use.' };
     }
     console.error('Failed to insert user into public.users:', insertError);

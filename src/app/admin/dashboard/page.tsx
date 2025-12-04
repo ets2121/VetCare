@@ -19,6 +19,9 @@ export default async function AdminDashboardPage() {
     .single();
 
   if (!userData) {
+    // This might happen if the user was deleted but the session still exists.
+    // In this case, we should log them out and redirect to login.
+    session.destroy();
     return redirect('/admin/login');
   }
 

@@ -19,6 +19,7 @@ export default async function SuperAdminDashboardPage() {
     .single();
   
   if (!userData) {
+    session.destroy();
     return redirect('/admin/login');
   }
 
