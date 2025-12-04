@@ -3,18 +3,26 @@ import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dog, Cat, User } from 'lucide-react';
+import { getSession } from '@/lib/session';
 
 export default async function DashboardPage() {
+  const session = await getSession();
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!session.isLoggedIn || session.role !== 'CUSTOMER') {
     redirect('/login');
   }
 
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('email, created_at')
+    .eq('user_id', session.user_id!)
+    .single();
+
+  if (!userProfile) {
+    redirect('/login');
+  }
+  
   const getInitials = (email: string) => {
     return email?.charAt(0).toUpperCase() || <User />;
   }
@@ -31,13 +39,13 @@ export default async function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Your Profile</CardTitle>
             <Avatar>
-              <AvatarFallback>{getInitials(user.email || '')}</AvatarFallback>
+              <AvatarFallback>{getInitials(userProfile.email || '')}</AvatarFallback>
             </Avatar>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold truncate">{user.email}</div>
+            <div className="text-2xl font-bold truncate">{userProfile.email}</div>
             <p className="text-xs text-muted-foreground">
-              Joined on {new Date(user.created_at).toLocaleDateString()}
+              Joined on {new Date(userProfile.created_at).toLocaleDateString()}
             </p>
           </CardContent>
         </Card>

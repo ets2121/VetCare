@@ -1,8 +1,10 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
+// This is a bare Supabase client. Do not use this for authenticated requests.
+// This is useful for functions that do not require a user session, for example
+// password reset, or for certain server-side operations.
 export function createClient() {
-  // Create a supabase client on the browser with project's credentials
-  return createBrowserClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
@@ -10,5 +12,5 @@ export function createClient() {
         schema: 'public',
       },
     }
-  )
+  );
 }

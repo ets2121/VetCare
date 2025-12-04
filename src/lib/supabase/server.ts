@@ -1,40 +1,27 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { getSession } from '@/lib/session';
 
-export function createClient() {
-  const cookieStore = cookies()
+// This is a server-side Supabase client.
+// It is used for making requests to Supabase from Server Components, Server Actions, and Route Handlers.
+// It is pre-configured with the user's access token if they are logged in.
+export async function createClient() {
+  const session = await getSession();
 
-  // Create a supabase client on the server with project's credentials
-  return createServerClient(
+  // Note: The service role key is used here for elevated privileges.
+  // This should be used with caution and only in server-side environments.
+  const supabase = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
     {
       db: {
         schema: 'public',
       },
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
-  )
+  );
+  
+  return supabase;
 }

@@ -1,14 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/session';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { logout } from '@/app/auth/actions';
 
 export async function Header() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSession();
 
   return (
     <header className="bg-background shadow-sm sticky top-0 z-40">
@@ -20,7 +17,7 @@ export async function Header() {
           <Link href="/#contact" className="transition-colors hover:text-accent">Contact</Link>
         </nav>
         <div className="flex items-center gap-2">
-          {user ? (
+          {session.isLoggedIn ? (
             <>
               <Button asChild variant="ghost">
                 <Link href="/dashboard">Dashboard</Link>

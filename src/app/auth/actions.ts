@@ -4,16 +4,20 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as bcrypt from 'bcrypt';
 import { createClient } from '@/lib/supabase/server';
+import { getSession, sessionOptions } from '@/lib/session';
+import { cookies } from 'next/headers';
+import { getIronSession } from 'iron-session';
 
 export async function login(formData: FormData) {
   const supabase = createClient();
+  const session = await getSession();
 
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('user_id, password_hash, role')
+    .select('user_id, password_hash, role, brand_id, branch_id')
     .eq('email', email)
     .single();
 
@@ -30,20 +34,13 @@ export async function login(formData: FormData) {
   if (user.role !== 'CUSTOMER') {
     return { error: 'Invalid credentials for this login form.' };
   }
-
-  const { error: sessionError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-  });
-
-  if (sessionError) {
-      // This part is now tricky. Without using Supabase Auth for the primary auth,
-      // we can't easily create a session. For now, we will use it to manage the session cookie
-      // even though we do our own password check. A better solution would involve custom session management.
-      // We will proceed with this temporary solution to keep session handling consistent.
-      // Let's assume there's a dummy account in `auth.users` to allow session creation.
-      // Or we create it on signup.
-  }
+  
+  session.user_id = user.user_id;
+  session.role = user.role;
+  session.brand_id = user.brand_id;
+  session.branch_id = user.branch_id;
+  session.isLoggedIn = true;
+  await session.save();
 
   revalidatePath('/', 'layout');
   redirect('/dashboard');
@@ -57,45 +54,45 @@ export async function signup(formData: FormData) {
   const saltRounds = 10;
   const password_hash = await bcrypt.hash(password, saltRounds);
 
-
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
-  });
-
-  if (signUpError || !signUpData.user) {
-    if (signUpError && signUpError.message.includes('already exists')) {
-         return { error: 'Could not sign up user. This email may already be in use.' };
-    }
-    return { error: 'Could not sign up user. ' + (signUpError?.message || 'An unknown error occurred.') };
+  // For now, let's assign a default brand_id. In a multi-tenant app, this would
+  // come from the context of the signup form (e.g., a subdomain or a selection).
+  // I will check the database for an existing brand and use it.
+  const { data: brand } = await supabase.from('brands').select('brand_id').limit(1).single();
+  if (!brand) {
+      return { error: 'Could not create user profile. No brand available.' };
   }
 
-
-  const { error: insertError } = await supabase.from('users').insert({
-    user_id: signUpData.user.id,
+  const { data: newUser, error: insertError } = await supabase.from('users').insert({
     email: email,
     password_hash,
     username: email.split('@')[0], 
     full_name: '',
     role: 'CUSTOMER',
-  }).select().single();
+    brand_id: brand.brand_id,
+  }).select('user_id, role, brand_id, branch_id').single();
 
-  if (insertError) {
-    const { data, error } = await supabase.auth.admin.deleteUser(signUpData.user.id);
+  if (insertError || !newUser) {
+    if (insertError.message.includes('unique constraint')) {
+      return { error: 'Could not sign up user. This email may already be in use.' };
+    }
     console.error('Failed to insert user into public.users:', insertError);
     return { error: 'Could not create user profile.' };
   }
 
+  const session = await getIronSession(cookies(), sessionOptions);
+  session.user_id = newUser.user_id;
+  session.role = newUser.role;
+  session.brand_id = newUser.brand_id;
+  session.branch_id = newUser.branch_id;
+  session.isLoggedIn = true;
+  await session.save();
+
   revalidatePath('/', 'layout');
-  redirect('/auth/confirm');
+  redirect('/dashboard');
 }
 
-
 export async function logout() {
-  const supabase = createClient();
-  await supabase.auth.signOut();
+  const session = await getSession();
+  session.destroy();
   redirect('/login');
 }

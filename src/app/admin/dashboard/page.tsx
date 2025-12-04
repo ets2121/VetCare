@@ -2,34 +2,31 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Building, Briefcase } from 'lucide-react';
+import { getSession } from '@/lib/session';
 
 export default async function AdminDashboardPage() {
+  const session = await getSession();
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!session.isLoggedIn || (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN')) {
     return redirect('/admin/login');
   }
 
   const { data: userData } = await supabase
     .from('users')
-    .select('role, full_name')
-    .eq('user_id', user.id)
+    .select('full_name, email')
+    .eq('user_id', session.user_id!)
     .single();
 
-  if (!userData || (userData.role !== 'ADMIN' && userData.role !== 'SUPER_ADMIN')) {
-    // Redirect to a generic dashboard or show an error if they are not an admin
-    return redirect('/dashboard');
+  if (!userData) {
+    return redirect('/admin/login');
   }
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Welcome, {userData.full_name || user.email}. Manage your clinic here.</p>
+        <p className="text-muted-foreground">Welcome, {userData.full_name || userData.email}. Manage your clinic here.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

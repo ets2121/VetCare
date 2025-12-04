@@ -2,25 +2,23 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldCheck, Building, DollarSign } from 'lucide-react';
+import { getSession } from '@/lib/session';
 
 export default async function SuperAdminDashboardPage() {
+  const session = await getSession();
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!session.isLoggedIn || session.role !== 'SUPER_ADMIN') {
     return redirect('/admin/login');
   }
 
   const { data: userData } = await supabase
     .from('users')
-    .select('role, full_name')
-    .eq('user_id', user.id)
+    .select('full_name, email')
+    .eq('user_id', session.user_id!)
     .single();
-
-  if (!userData || userData.role !== 'SUPER_ADMIN') {
+  
+  if (!userData) {
     return redirect('/admin/login');
   }
 
@@ -28,7 +26,7 @@ export default async function SuperAdminDashboardPage() {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-        <p className="text-muted-foreground">Welcome, {userData.full_name || user.email}. System-wide management.</p>
+        <p className="text-muted-foreground">Welcome, {userData.full_name || userData.email}. System-wide management.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -49,7 +47,7 @@ export default async function SuperAdminDashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">All Branches</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
+          </d</CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">25</div>
             <p className="text-xs text-muted-foreground">
