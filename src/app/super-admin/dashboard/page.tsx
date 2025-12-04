@@ -48,7 +48,7 @@ export default async function SuperAdminDashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">All Branches</CardTitle>
             <Building className="h-4 w-4 text-muted-foreground" />
-          </d</CardHeader>
+          </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">25</div>
             <p className="text-xs text-muted-foreground">
