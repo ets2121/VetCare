@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as bcrypt from 'bcrypt';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/client';
 import { getIronSession } from 'iron-session';
 import { SessionData, sessionOptions } from '@/lib/session';
 import { cookies } from 'next/headers';
