@@ -5,8 +5,8 @@ import { Button } from './ui/button';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logout } from '@/app/auth/actions';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, LayoutDashboard, Dog, Cat, Calendar, User, LogOut } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Menu, LayoutDashboard, Dog, Calendar, User, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -68,10 +68,10 @@ export function UserDashboardHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[360px]">
+                <SheetHeader className='p-4'>
+                    <SheetTitle><Logo /></SheetTitle>
+                </SheetHeader>
               <div className="p-4">
-                <div className="mb-6">
-                  <Logo />
-                </div>
                 <div className="flex flex-col gap-2">
                   {navLinks.map((link) => (
                     <NavLink key={link.href} href={link.href}>

@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logout } from '@/app/auth/actions';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, ShieldCheck, Users, Briefcase, Building, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getSession } from '@/lib/session';
@@ -33,30 +33,17 @@ export function AdminDashboardHeader() {
   const [session, setSession] = useState<SessionData | null>(null);
 
   useEffect(() => {
-    // Since getSession is a server function, we can't call it directly in a client component.
-    // A common pattern is to fetch the session via an API route.
-    // For simplicity here, we'll assume a client-side fetcher exists or we pass session as prop.
-    // Let's create a placeholder for the session role.
     const fetchSession = async () => {
-        const res = await fetch('/api/session'); // This route needs to be created
+        const res = await fetch('/api/session');
         if (res.ok) {
             const data = await res.json();
             setSession(data);
         }
     }
-    // fetchSession(); // This would be the ideal implementation
-    
-    // For now, we determine the role from the path as a workaround
-    if(pathname.startsWith('/super-admin')) {
-        setSession({ isLoggedIn: true, role: 'SUPER_ADMIN' });
-    } else {
-        setSession({ isLoggedIn: true, role: 'ADMIN' });
-    }
-
-  }, [pathname]);
+    fetchSession();
+  }, []);
 
   const navLinks = session?.role === 'SUPER_ADMIN' ? superAdminNavLinks : adminNavLinks;
-  const dashboardUrl = session?.role === 'SUPER_ADMIN' ? '/super-admin/dashboard' : '/admin/dashboard';
 
 
   const NavLink = ({ href, children }: { href: string, children: React.ReactNode }) => (
@@ -106,10 +93,10 @@ export function AdminDashboardHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[360px]">
+              <SheetHeader className="p-4">
+                  <SheetTitle><Logo /></SheetTitle>
+              </SheetHeader>
               <div className="p-4">
-                <div className="mb-6">
-                  <Logo />
-                </div>
                 <div className="flex flex-col gap-2">
                   {navLinks.map((link) => (
                      <NavLink key={link.href} href={link.href}>
@@ -134,14 +121,3 @@ export function AdminDashboardHeader() {
     </header>
   );
 }
-
-// You would need to create this API route at /src/app/api/session/route.ts
-/*
-import { getSession } from '@/lib/session';
-import { NextResponse } from 'next/server';
-
-export async function GET() {
-  const session = await getSession();
-  return NextResponse.json(session);
-}
-*/
