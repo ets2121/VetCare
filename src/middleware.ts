@@ -8,51 +8,54 @@ export async function middleware(request: NextRequest) {
   const { isLoggedIn, role } = session;
   const { pathname } = request.nextUrl;
 
-  // Exclude API routes from middleware processing
+  // Allow API routes to be accessed without authentication checks
   if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  const publicRoutes = ['/', '/login', '/signup', '/admin/login'];
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname === '/auth/confirm';
-
-  const customerDashboard = '/dashboard';
-  const adminDashboard = '/admin/dashboard';
-  const superAdminDashboard = '/super-admin/dashboard';
+  const isAuthPage =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/admin/login');
 
   if (isLoggedIn) {
-    // If logged in, determine the correct dashboard
     let userDashboard = '/';
-    if (role === 'CUSTOMER') userDashboard = customerDashboard;
-    if (role === 'ADMIN') userDashboard = adminDashboard;
-    if (role === 'SUPER_ADMIN') userDashboard = superAdminDashboard;
-
-    // If logged-in user is trying to access a public page (like /login), redirect to their dashboard
-    if (isPublicRoute && pathname !== '/') { // Allow access to homepage
+    if (role === 'CUSTOMER') userDashboard = '/dashboard';
+    if (role === 'ADMIN') userDashboard = '/admin/dashboard';
+    if (role === 'SUPER_ADMIN') userDashboard = '/super-admin/dashboard';
+    
+    // If logged in user tries to access an auth page, redirect to their dashboard
+    if (isAuthPage) {
       return NextResponse.redirect(new URL(userDashboard, request.url));
+    }
+     if (pathname === '/') {
+        return NextResponse.redirect(new URL(userDashboard, request.url));
     }
 
     // Role-based access control for protected routes
-    if (pathname.startsWith('/admin') && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL(customerDashboard, request.url));
+    const isCustomerDashboard = pathname.startsWith('/dashboard');
+    const isAdminDashboard = pathname.startsWith('/admin/dashboard');
+    const isSuperAdminDashboard = pathname.startsWith('/super-admin/dashboard');
+
+    if (isCustomerDashboard && role !== 'CUSTOMER') {
+      return NextResponse.redirect(new URL(userDashboard, request.url));
     }
-    if (pathname.startsWith('/super-admin') && role !== 'SUPER_ADMIN') {
-      // Redirect non-super-admins away from super-admin routes
-       return NextResponse.redirect(new URL(role === 'ADMIN' ? adminDashboard : customerDashboard, request.url));
+    if (isAdminDashboard && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return NextResponse.redirect(new URL(userDashboard, request.url));
     }
-    if (pathname.startsWith('/dashboard') && role !== 'CUSTOMER') {
-      // Redirect non-customers away from the customer dashboard
-      return NextResponse.redirect(new URL(role === 'ADMIN' ? adminDashboard : superAdminDashboard, request.url));
+    if (isSuperAdminDashboard && role !== 'SUPER_ADMIN') {
+        return NextResponse.redirect(new URL(userDashboard, request.url));
     }
+
   } else {
-    // If not logged in, protect non-public routes
-    const isProtectedRoute = !isPublicRoute;
+    // If not logged in, and trying to access a protected page, redirect to login
+    const isProtectedRoute = !isAuthPage && pathname !== '/';
     if (isProtectedRoute) {
-      let loginUrl = '/login';
-      if (pathname.startsWith('/admin') || pathname.startsWith('/super-admin')) {
-        loginUrl = '/admin/login';
-      }
-      return NextResponse.redirect(new URL(loginUrl, request.url));
+        let loginUrl = '/login';
+        if (pathname.startsWith('/admin') || pathname.startsWith('/super-admin')) {
+            loginUrl = '/admin/login';
+        }
+        return NextResponse.redirect(new URL(loginUrl, request.url));
     }
   }
 

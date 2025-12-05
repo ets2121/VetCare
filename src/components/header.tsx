@@ -3,13 +3,9 @@ import { Logo } from './logo';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { logout } from '@/app/auth/actions';
-import { headers } from 'next/headers';
 
 export async function Header() {
   const session = await getSession();
-  const pathname = headers().get('next-url');
-
-  const isAdminLoginPage = pathname === '/admin/login';
 
   return (
     <header className="bg-background shadow-sm sticky top-0 z-40">
@@ -31,16 +27,14 @@ export async function Header() {
               </form>
             </>
           ) : (
-            !isAdminLoginPage && (
-              <>
-                <Button asChild variant="ghost">
-                  <Link href="/login">Login</Link>
-                </Button>
-                <Button asChild style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
-                  <Link href="/signup">Sign Up</Link>
-                </Button>
-              </>
-            )
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/login">Login</Link>
+              </Button>
+              <Button asChild style={{ backgroundColor: 'hsl(var(--accent))', color: 'hsl(var(--accent-foreground))' }}>
+                <Link href="/signup">Sign Up</Link>
+              </Button>
+            </>
           )}
         </div>
       </div>
