@@ -16,7 +16,8 @@ export default function RootLayout({
 }>) {
   const pathname = headers().get('next-url') || '';
   const authRoutes = ['/login', '/signup', '/admin/login'];
-  const showHeaderFooter = !authRoutes.includes(pathname);
+  const showHeaderFooter = !authRoutes.some(route => pathname.endsWith(route));
+
 
   return (
     <html lang="en" className="dark">

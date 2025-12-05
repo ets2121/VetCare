@@ -10,7 +10,7 @@ import { Logo } from '@/components/logo';
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <Logo />
