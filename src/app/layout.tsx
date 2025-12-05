@@ -15,7 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = headers().get('next-url') || '';
-  const showHeaderFooter = !pathname.startsWith('/admin/login');
+  const authRoutes = ['/login', '/signup', '/admin/login'];
+  const showHeaderFooter = !authRoutes.includes(pathname);
 
   return (
     <html lang="en" className="dark">
