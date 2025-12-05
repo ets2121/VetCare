@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
+import { headers } from 'next/headers';
 
 export const metadata: Metadata = {
   title: 'VetConnect - Your Pet\'s Health Partner',
@@ -13,6 +14,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = headers().get('next-url') || '';
+  const showHeaderFooter = !pathname.startsWith('/admin/login');
+
   return (
     <html lang="en" className="dark">
       <head>
@@ -22,9 +26,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <div className="flex min-h-screen flex-col">
-          <Header />
+          {showHeaderFooter && <Header />}
           <main className="flex-1">{children}</main>
-          <Footer />
+          {showHeaderFooter && <Footer />}
         </div>
       </body>
     </html>
