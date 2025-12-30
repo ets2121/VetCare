@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
-import { logout } from '@/app/auth/actions';
+import { LogoutButton } from '@/components/layout/LogoutButton';
 
 interface SideNavProps {
   navLinks: {
@@ -32,15 +30,10 @@ export function SideNav({ navLinks }: SideNavProps) {
             </Link>
           );
         })}
+        <div className="mt-4">
+          <LogoutButton />
+        </div>
       </nav>
-      <div className="mt-auto p-4">
-        <form action={logout}>
-          <Button variant="outline" type="submit" className="w-full justify-start gap-2">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
-        </form>
-      </div>
     </aside>
   );
 }

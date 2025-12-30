@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { logout } from '@/app/auth/actions';
+import { Menu, X } from 'lucide-react';
+import { LogoutButton } from '@/components/layout/LogoutButton';
 
 interface HeaderProps {
   navLinks: {
@@ -31,7 +30,7 @@ export function Header({ navLinks, brand }: HeaderProps) {
 
       {isOpen && (
         <div className="fixed left-0 top-14 z-20 flex h-[calc(100vh-56px)] w-full flex-col bg-muted p-4">
-          <nav className="flex-1">
+          <nav className="flex flex-1 flex-col gap-2">
             {navLinks.map((link) => {
               const isActive = pathname.startsWith(link.href);
               return (
@@ -45,13 +44,10 @@ export function Header({ navLinks, brand }: HeaderProps) {
                 </Link>
               );
             })}
+            <div className="mt-4">
+              <LogoutButton />
+            </div>
           </nav>
-          <form action={logout}>
-            <Button variant="outline" type="submit" className="w-full justify-start gap-2">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </form>
         </div>
       )}
     </header>
