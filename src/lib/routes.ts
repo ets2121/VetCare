@@ -2,6 +2,24 @@
 
 // lib/routes.ts
 
+import { ROLES } from './roles';
+
+export const ROLE_PAGE_ACCESS: Record<string, string[]> = {
+  SUPER_ADMIN: ['/super-admin', '/dashboard', '/branches', '/appointments'],
+  ADMIN: ['/dashboard', '/branches', '/appointments'],
+  STAFF: ['/dashboard', '/appointments'],
+  CUSTOMER: ['/dashboard'],
+};
+
+export const ROLE_API_ACCESS: Record<string, string[]> = {
+  SUPER_ADMIN: ['/api/users', '/api/branches', '/api/appointments'],
+  ADMIN: ['/api/branches', '/api/appointments'],
+  STAFF: ['/api/appointments'],
+  CUSTOMER: ['/api/appointments'],
+};
+
+
+
 // Public pages
 export const PUBLIC_PAGES = [
   '/login',
