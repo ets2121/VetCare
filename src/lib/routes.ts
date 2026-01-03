@@ -12,7 +12,7 @@ export const ROLE_PAGE_ACCESS: Record<string, string[]> = {
 };
 
 export const ROLE_API_ACCESS: Record<string, string[]> = {
-  SUPER_ADMIN: ['/api/users', '/api/branches', '/api/appointments'],
+  SUPER_ADMIN: ['/api/super-admin', '/api/branch', '/api/appointments'],
   ADMIN: ['/api/branches', '/api/appointments'],
   STAFF: ['/api/appointments'],
   CUSTOMER: ['/api/appointments'],
@@ -32,15 +32,16 @@ export const PROTECTED_PAGE_PREFIXES = [
   '/branches',
   '/appointments',
   '/super-admin',
-  '/admin',
+  '/admin/login',
   '/users',
 ];
 
 
 // APIs that DO NOT require login
 export const PUBLIC_API_ROUTES = [
-  '/api/auth/login',
-    '/api/auth/logout',
+  '/api/admin/login',
+    '/api/user/login',
+    '/api/user/signup',
     ];
 
     // APIs that REQUIRE login
