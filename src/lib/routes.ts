@@ -24,6 +24,7 @@ export const ROLE_API_ACCESS: Record<string, string[]> = {
 export const PUBLIC_PAGES = [
   '/login',
   '/signup',
+  '/admin/login',
 ];
 
 // Pages that REQUIRE login
@@ -32,7 +33,7 @@ export const PROTECTED_PAGE_PREFIXES = [
   '/branches',
   '/appointments',
   '/super-admin',
-  '/admin/login',
+  '/admin',
   '/users',
 ];
 

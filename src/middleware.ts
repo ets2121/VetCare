@@ -27,6 +27,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+
+
+  // Allow public Pages
+  if (PUBLIC_PAGES.includes(pathname)) {
+    return NextResponse.next();
+  }
+
   // Protect Pages
   const isProtectedPage = PROTECTED_PAGE_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix)
@@ -49,5 +56,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/dashboard/:path*', '/branches/:path*', '/appointments/:path*', '/super-admin/:path*'],
+  matcher: ['/api/:path*', '/dashboard/:path*', '/branches/:path*', '/admin/:path*', '/super-admin/:path*'],
 };
