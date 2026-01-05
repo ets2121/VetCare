@@ -12,7 +12,7 @@ export const ROLE_PAGE_ACCESS: Record<string, string[]> = {
 };
 
 export const ROLE_API_ACCESS: Record<string, string[]> = {
-  SUPER_ADMIN: ['/api/super-admin', '/api/branch', '/api/appointments'],
+  SUPER_ADMIN: ['/api/super-admin', '/api/branches', '/api/appointments'],
   ADMIN: ['/api/branches', '/api/appointments'],
   STAFF: ['/api/appointments'],
   CUSTOMER: ['/api/appointments'],

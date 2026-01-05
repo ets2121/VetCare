@@ -11,7 +11,7 @@ export interface Branch extends Timestamps {
 }
 
 export interface BranchCreateInput {
-  brand_id: string;
+ // brand_id: string;
   name: string;
   address?: string | null;
   phone?: string | null;
@@ -27,7 +27,7 @@ export interface BranchUpdateInput {
 }
 
 export const BranchCreateSchema = z.object({
-  brand_id: z.string().uuid(),
+ // brand_id: z.string().uuid(),
   name: z.string().min(1).max(255),
   address: z.string().max(1000).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),

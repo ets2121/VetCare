@@ -17,7 +17,7 @@ export const sessionOptions = {
   password: process.env.SECRET_COOKIE_PASSWORD,
   cookieName: 'vetconnect-session',
   cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
+    secure:true, //process.env.NODE_ENV === 'production',
   },
 };
 
