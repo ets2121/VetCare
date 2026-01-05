@@ -1,34 +1,41 @@
-// models/service.model.ts
+import { z } from 'zod';
+import { Timestamps } from './base.model';
 
-export interface Service {
-    service_id: string;
-    // PRIMARY KEY
-  
-    brand_id: string | null;
-    // FOREIGN KEY → brands.brand_id
-  
-    name: string;
-    // Required
-    // Service name
-  
-    description: string | null;
-    // Service description
-  
-    duration_minutes: number;
-    // Default: 30
-    // Service duration
-  
-    price: number;
-    // Default: 0
-  
-    active: boolean;
-    // Default: true
-    // Used to enable / disable service
-  
-    created_at: string;
-    // Timestamp
-  
-    updated_at: string;
-    // Timestamp
-  }
-  
+export interface Service extends Timestamps {
+  service_id: string;
+  brand_id: string;
+  name: string;
+  description: string | null;
+  duration_minutes: number;
+  price: number;
+  active: boolean;
+}
+
+export interface ServiceCreateInput {
+  brand_id: string;
+  name: string;
+  description?: string | null;
+  duration_minutes?: number;
+  price?: number;
+  active?: boolean;
+}
+
+export interface ServiceUpdateInput {
+  brand_id?: string;
+  name?: string;
+  description?: string | null;
+  duration_minutes?: number;
+  price?: number;
+  active?: boolean;
+}
+
+export const ServiceCreateSchema = z.object({
+  brand_id: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).optional().nullable(),
+  duration_minutes: z.number().int().positive().default(30),
+  price: z.number().nonnegative().default(0),
+  active: z.boolean().default(true),
+});
+
+export const ServiceUpdateSchema = ServiceCreateSchema.partial();

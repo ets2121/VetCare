@@ -1,53 +1,66 @@
-// models/pet.model.ts
+import { z } from 'zod';
+import { Timestamps } from './base.model';
+import { PetSex, PetStatus } from './enums/pet.enum';
 
-export type PetSex = 'male' | 'female' | 'unknown';
-
-export interface Pet {
+export interface Pet extends Timestamps {
   pet_id: string;
-  // PRIMARY KEY
-
-  owner_id: string | null;
-  // FOREIGN KEY → users.user_id
-  // Owner of the pet
-
+  owner_id: string;
   brand_id: string | null;
-  // FOREIGN KEY → brands.brand_id
-
   branch_id: string | null;
-  // FOREIGN KEY → branches.branch_id
-
   name: string;
-  // Required
-  // Pet name
-
   species: string | null;
-  // e.g. Dog, Cat
-
   breed: string | null;
-  // Optional
-
-  sex: PetSex | null;
-  // Enum constraint
-
-  dob: string | null;
-  // Date of birth
-
+  sex: PetSex;
+  dob: string | null; // date → "YYYY-MM-DD"
   color: string | null;
-  // Optional
-
   weight_kg: number | null;
-  // Weight in kilograms
-
   microchip_id: string | null;
-  // UNIQUE
-  // Pet microchip identifier
-
-  status: string;
-  // Default: 'active'
-
-  created_at: string;
-  // Timestamp
-
-  updated_at: string;
-  // Timestamp
+  status: PetStatus;
 }
+
+export interface PetCreateInput {
+  owner_id: string;
+  brand_id?: string | null;
+  branch_id?: string | null;
+  name: string;
+  species?: string | null;
+  breed?: string | null;
+  sex: PetSex;
+  dob?: string | null;
+  color?: string | null;
+  weight_kg?: number | null;
+  microchip_id?: string | null;
+  status?: PetStatus;
+}
+
+export interface PetUpdateInput {
+  owner_id?: string;
+  brand_id?: string | null;
+  branch_id?: string | null;
+  name?: string;
+  species?: string | null;
+  breed?: string | null;
+  sex?: PetSex;
+  dob?: string | null;
+  color?: string | null;
+  weight_kg?: number | null;
+  microchip_id?: string | null;
+  status?: PetStatus;
+}
+
+export const PetCreateSchema = z.object({
+  owner_id: z.string().uuid(),
+  brand_id: z.string().uuid().optional().nullable(),
+  branch_id: z.string().uuid().optional().nullable(),
+  name: z.string().min(1).max(255),
+  species: z.string().max(100).optional().nullable(),
+  breed: z.string().max(100).optional().nullable(),
+  sex: z.nativeEnum(PetSex),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(), // YYYY-MM-DD
+  color: z.string().max(100).optional().nullable(),
+  weight_kg: z.number().nonnegative().optional().nullable(),
+  microchip_id: z.string().max(100).optional().nullable(),
+  status: z.nativeEnum(PetStatus).default(PetStatus.ACTIVE),
+});
+
+export const PetUpdateSchema = PetCreateSchema.partial();

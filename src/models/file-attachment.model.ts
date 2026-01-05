@@ -1,25 +1,37 @@
-// models/fileAttachment.model.ts
+import { z } from 'zod';
+import { Timestamps } from './base.model';
 
-export interface FileAttachment {
-    file_id: string;
-    // PRIMARY KEY
-  
-    entry_id: string | null;
-    // FOREIGN KEY → pet_passport_entries.entry_id
-  
-    brand_id: string | null;
-    // FOREIGN KEY → brands.brand_id
-  
-    file_url: string | null;
-    // URL of uploaded file
-  
-    file_type: string | null;
-    // e.g. image/pdf
-  
-    uploaded_by: string | null;
-    // FOREIGN KEY → users.user_id
-  
-    uploaded_at: string;
-    // Timestamp
-  }
-  
+export interface FileAttachment extends Timestamps {
+  file_id: string;
+  entry_id: string | null;
+  brand_id: string | null;
+  file_url: string;
+  file_type: string | null;
+  uploaded_by: string | null;
+}
+
+export interface FileAttachmentCreateInput {
+  entry_id?: string | null;
+  brand_id?: string | null;
+  file_url: string;
+  file_type?: string | null;
+  uploaded_by?: string | null;
+}
+
+export interface FileAttachmentUpdateInput {
+  entry_id?: string | null;
+  brand_id?: string | null;
+  file_url?: string;
+  file_type?: string | null;
+  uploaded_by?: string | null;
+}
+
+export const FileAttachmentCreateSchema = z.object({
+  entry_id: z.string().uuid().optional().nullable(),
+  brand_id: z.string().uuid().optional().nullable(),
+  file_url: z.string().url(),
+  file_type: z.string().max(50).optional().nullable(),
+  uploaded_by: z.string().uuid().optional().nullable(),
+});
+
+export const FileAttachmentUpdateSchema = FileAttachmentCreateSchema.partial();

@@ -1,34 +1,37 @@
-// models/brand.model.ts
+import { z } from 'zod';
+import { Timestamps } from './base.model';
 
-export interface Brand {
-    brand_id: string;
-    // PRIMARY KEY
-    // UUID
-  
-    name: string;
-    // Required
-    // Brand / company name
-  
-    logo_url: string | null;
-    // Optional
-    // URL of brand logo
-  
-    email: string | null;
-    // Optional
-    // Brand contact email
-  
-    phone: string | null;
-    // Optional
-    // Brand contact phone
-  
-    status: string;
-    // Default: 'active'
-    // Used to disable brand access
-  
-    created_at: string;
-    // Timestamp
-  
-    updated_at: string;
-    // Timestamp
-  }
-  
+export interface Brand extends Timestamps {
+  brand_id: string;
+  name: string;
+  logo_url: string | null;
+  email: string | null;
+  phone: string | null;
+  status: string; // DB: DEFAULT 'active' — no enum, so string
+}
+
+export interface BrandCreateInput {
+  name: string;
+  logo_url?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  status?: string;
+}
+
+export interface BrandUpdateInput {
+  name?: string;
+  logo_url?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  status?: string;
+}
+
+export const BrandCreateSchema = z.object({
+  name: z.string().min(1).max(255),
+  logo_url: z.string().url().optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  status: z.string().default('active'),
+});
+
+export const BrandUpdateSchema = BrandCreateSchema.partial();
