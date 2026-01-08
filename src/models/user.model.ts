@@ -32,9 +32,9 @@ export interface UserCreateInput {
 export interface UserUpdateInput {
   brand_id?: string | null;
   branch_id?: string | null;
-  username?: string;
-  email?: string;
-  password_hash?: string;
+  username?: string | null;
+  email?: string | null;
+  password_hash?: string | null;
   full_name?: string | null;
   phone?: string | null;
   role?: UserRole;
@@ -47,7 +47,7 @@ export const UserCreateSchema = z.object({
   branch_id: z.string().uuid().optional().nullable(),
   username: z.string().min(1).max(255),
   email: z.string().email(),
-  password_hash: z.string().min(1),
+  password: z.string().min(1),
   full_name: z.string().max(255).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   role: z.nativeEnum(UserRole),
