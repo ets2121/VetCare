@@ -18,7 +18,7 @@ export interface PetPassportEntry extends Timestamps {
 
 export interface PetPassportEntryCreateInput {
   pet_id: string;
-  brand_id: string;
+  brand_id: string | null;
   branch_id?: string | null;
   staff_id?: string | null;
   entry_type: PassportEntryType;
