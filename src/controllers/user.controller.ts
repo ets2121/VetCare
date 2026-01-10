@@ -127,7 +127,7 @@ export const userController = {
       if (!session.isLoggedIn || !session.brand_id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      if (!hasRole([UserRole.ADMIN, UserRole.SUPER_ADMIN], session.role)) {
+      if (!hasRole([UserRole.ADMIN, UserRole.CUSTOMER], session.role)) {
         return NextResponse.json({ error: 'Only admins can create customers' }, { status: 403 });
       }
 

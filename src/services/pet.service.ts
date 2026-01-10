@@ -41,8 +41,10 @@ export class PetService {
    * @param limit items per page (max 100)
    * @returns {  Pet[], pagination: { total, page, limit, pages } }
    */
-  async getAll(page: number = 1, limit: number = 20): Promise<{(Pet & { segment3: string })[],
-    pagination: { total: number; page: number; limit: number; pages: number };}> {
+  async getAll(page: number = 1, limit: number = 20): Promise<{data:
+     (Pet)[],
+    pagination: { total: number; page: number; limit: number; pages: number };
+  }> {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
     const offset = (page - 1) * safeLimit;
 
@@ -58,7 +60,7 @@ export class PetService {
     }
 
     // Get data
-    const {data, error } = await this.supabase
+    const { data, error } = await this.supabase
       .from('pets')
       .select(`
         pet_id,
@@ -89,10 +91,9 @@ export class PetService {
     const pages = total ? Math.ceil(total / safeLimit) : 0;
 
     return {
-      data.map(pet => ({
+       data:data.map(pet => ({
         ...pet,
-        segment3: this.extractSegment3(pet.pet_id),
-      })) as (Pet & { segment3: string })[],
+      })) as (Pet)[],
       pagination: {
         total: total || 0,
         page,
@@ -107,9 +108,9 @@ export class PetService {
    * @param segment3 4-digit UUID segment (e.g., '4966')
    * @returns Pet[] with segment3 included
    */
-  async searchBySegment3(segment3: string): Promise<(Pet & { segment3: string })[]> {
-    if (!/^[0-9a-f]{4}$/i.test(segment3)) {
-      return []; // Invalid format
+  async searchBySegment3(segment3: string): Promise<(Pet)[]> {
+    if (!segment3) {
+      throw new Error('PetService.searchBySegment3 requires segment3');
     }
 
     const { data, error } = await this.supabase
@@ -132,7 +133,7 @@ export class PetService {
         updated_at
       `)
       .eq('brand_id', this.brand_id)
-      .ilike('pet_id', `%-${segment3}-%`);
+      .eq('microchip_id', segment3);
 
     if (error) {
       console.error('PetService.searchBySegment3 error:', error);
@@ -141,8 +142,7 @@ export class PetService {
 
     return data.map(pet => ({
       ...pet,
-      segment3: this.extractSegment3(pet.pet_id),
-    })) as (Pet & { segment3: string })[];
+    })) as (Pet)[];
   }
 
   /**
@@ -151,7 +151,7 @@ export class PetService {
    * - brand_id = service context
    * - branch_id = null (per your spec: customers don't need branch)
    */
-  async register(input: Omit<PetCreateInput, 'owner_id' | 'brand_id' | 'branch_id'>, owner_id: string): Promise<Pet & { segment3: string }> {
+  async register(input: Omit<PetCreateInput, 'owner_id' | 'brand_id' | 'branch_id' | 'microchip_id'>, owner_id: string): Promise<Pet> {
     const insertData: PetCreateInput = {
       ...input,
       owner_id,
@@ -188,8 +188,8 @@ export class PetService {
 
     return {
       ...data,
-      segment3: this.extractSegment3(data.pet_id),
-    } as Pet & { segment3: string };
+      
+    } as Pet;
   }
 
   /**
@@ -197,7 +197,7 @@ export class PetService {
    * - Cannot change owner_id, brand_id, or pet_id
    * - Dynamic input (any field from PetUpdateInput)
    */
-  async update(pet_id: string, input: PetUpdateInput): Promise<Pet & { segment3: string }> {
+  async update(pet_id: string, input: PetUpdateInput): Promise<Pet> {
     // Prevent modification of critical fields
     const updateData = {
       ...input,
@@ -236,8 +236,8 @@ export class PetService {
 
     return {
       ...data,
-      segment3: this.extractSegment3(data.pet_id),
-    } as Pet & { segment3: string };
+      
+    } as Pet;
   }
 
   /**
