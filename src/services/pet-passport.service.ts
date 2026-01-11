@@ -28,6 +28,7 @@ export interface PetWithPassports {
   breed: string | null;
   sex: string;
   dob: string | null;
+  microchip_id: string | null;
   passport_entries: (PetPassportEntry & {
     branch_address: string | null;
   })[];
@@ -67,9 +68,9 @@ export class PetPassportService {
    */
   async getByOwner(owner_id: string): Promise<PetWithPassports[]> {
     // First get all pets for owner
-    const {  pets, error: petError } = await this.supabase
+    const {data: pets, error: petError } = await this.supabase
       .from('pets')
-      .select('pet_id, name, species, breed, sex, dob')
+      .select('pet_id, name, species, breed, sex, dob, microchip_id')
       .eq('owner_id', owner_id)
       .eq('brand_id', this.brand_id);
 
@@ -85,7 +86,7 @@ export class PetPassportService {
     const petIds = pets.map(p => p.pet_id);
 
     // Get visible passport entries + branch addresses
-    const {  entries, error: entryError } = await this.supabase
+    const {data:  entries, error: entryError } = await this.supabase
       .from('pet_passport_entries')
       .select(`
         entry_id,
@@ -205,7 +206,7 @@ export class PetPassportService {
    * - branch_id = provided (from admin's current branch)
    */
   async create(
-    input: Omit<PetPassportEntryCreateInput, 'staff_id' | 'brand_id' | 'branch_id'>,
+    input: Omit<PetPassportEntryCreateInput, 'staff_id' | 'brand_id' >,
     staff_id: string,
     branch_id: string
   ): Promise<PetPassportEntry & { branch_address: string | null }> {
