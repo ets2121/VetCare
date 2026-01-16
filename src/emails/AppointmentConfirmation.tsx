@@ -3,7 +3,7 @@ import { NotificationData } from '@/types/email';
 import { formatManilaDateTime } from '@/lib/time-helpers';
 
 interface Props {
-   NotificationData;
+   data: NotificationData;
 }
 
 export default function AppointmentConfirmation({ data }: Props) {

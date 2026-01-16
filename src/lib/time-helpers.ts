@@ -1,17 +1,20 @@
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 
 const TIMEZONE = 'Asia/Manila';
 
+// UTC → Manila time
 export function toManilaTime(date: string | Date): Date {
-  return utcToZonedTime(date, TIMEZONE);
+  return toZonedTime(new Date(date), TIMEZONE);
 }
 
+// Manila/local → UTC
 export function toUtc(date: string | Date): Date {
-  return zonedTimeToUtc(date, TIMEZONE);
+  return new Date(date); // Date is always stored as UTC internally
 }
 
 export function formatManilaDateTime(date: string): string {
   const manilaDate = toManilaTime(date);
+
   return manilaDate.toLocaleString('en-PH', {
     timeZone: TIMEZONE,
     year: 'numeric',
@@ -24,7 +27,7 @@ export function formatManilaDateTime(date: string): string {
 
 export function isWeekend(date: string): boolean {
   const d = new Date(date);
-  return d.getDay() === 0 || d.getDay() === 6; // Sunday or Saturday
+  return d.getDay() === 0 || d.getDay() === 6;
 }
 
 export function addDays(date: Date, days: number): Date {

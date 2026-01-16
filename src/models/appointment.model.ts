@@ -49,10 +49,10 @@ export const AppointmentCreateSchema = z.object({
   brand_id: z.string().uuid().optional().nullable(),
   branch_id: z.string().uuid().optional().nullable(),
   pet_id: z.string().uuid(),
-  owner_id: z.string().uuid(),
+  owner_id: z.string().uuid().optional(),
   service_id: z.string().uuid().optional().nullable(),
   start_time: z.string().datetime({ offset: true }), // Allows +08:00
-  end_time: z.string().datetime({ offset: true }),
+  end_time: z.string().datetime({ offset: true }).optional(),
   status: z.nativeEnum(AppointmentStatus).default(AppointmentStatus.PENDING),
   payment_status: z.nativeEnum(PaymentStatus).default(PaymentStatus.UNPAID),
   notes: z.string().max(2000).optional().nullable(),

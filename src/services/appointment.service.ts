@@ -6,9 +6,13 @@ import {
   AppointmentStatus,
   PaymentStatus,
   UserRole,
+  NotificationType,
+  NotificationPriority,
+  NotificationStatus,
 } from '@/models';
 import {
   toUtc,
+  toManilaTime,
   isWeekend,
   addDays,
   formatDate,
@@ -72,7 +76,7 @@ export class AppointmentService {
     const settings = await this.settingsService.getBranchSettings(this.brand_id, branch_id);
     
     // Validate service exists and is active
-    const {  service } = await this.supabase
+    const {data:  service } = await this.supabase
       .from('services')
       .select('duration_minutes')
       .eq('service_id', service_id)
@@ -123,10 +127,10 @@ export class AppointmentService {
       dates.push({
         date: dateStr,
         day_of_week: dayOfWeek,
-        slots_available: isFull ? 0 : this.calculateAvailableSlots(service.duration_minutes, settings),
+        slots_available:(settings.max_daily_appointments || 0) - (appointmentCount || 0),//isFull ? 0 : this.calculateAvailableSlots(service.duration_minutes,settings.max_daily_appointments - settings),
         is_today: isToday,
-        is_holiday: false,
-        is_full,
+        is_holiday: isHoliday,
+        is_full: isFull,
       });
 
       currentDate.setDate(currentDate.getDate() + 1);
@@ -148,7 +152,7 @@ export class AppointmentService {
     }
 
     // Validate service
-    const {  service } = await this.supabase
+    const {data: service } = await this.supabase
       .from('services')
       .select('duration_minutes')
       .eq('service_id', service_id)
@@ -178,7 +182,7 @@ export class AppointmentService {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
 
-    const {  bookedAppointments } = await this.supabase
+    const {data: bookedAppointments } = await this.supabase
       .from('appointments')
       .select('start_time, end_time')
       .eq('brand_id', this.brand_id)
@@ -234,7 +238,7 @@ export class AppointmentService {
 
     // Verify pet ownership (if customer)
     if (this.role === UserRole.CUSTOMER) {
-      const {  pet } = await this.supabase
+      const {data:  pet } = await this.supabase
         .from('pets')
         .select('owner_id, name')
         .eq('pet_id', pet_id)
@@ -253,7 +257,7 @@ export class AppointmentService {
     await this.validateTime(settings, branch_id, service_id, start_time);
 
     // Get service details
-    const {  service } = await this.supabase
+    const {data:  service } = await this.supabase
       .from('services')
       .select('name, duration_minutes, price')
       .eq('service_id', service_id)
@@ -311,7 +315,7 @@ export class AppointmentService {
         owner: users!owner_id(full_name, email),
         service: services!inner(name),
         branch: branches!inner(name, address),
-        staff: users!created_by(full_name)
+        created_by: users!created_by(full_name)
       `)
       .single();
 
@@ -325,7 +329,7 @@ export class AppointmentService {
       service_name: data.service.name,
       branch_name: data.branch.name,
       branch_address: data.branch.address,
-      staff_name: data.staff.full_name || 'Staff',
+      staff_name: data.created_by.full_name || 'Staff',
     } as AppointmentWithRelations;
 
     // Auto-create passport entry if required
@@ -386,7 +390,7 @@ export class AppointmentService {
         visible_to_customer: true,
         visible_to_admin: false,
         branch_id,
-        shouldEmail: settings.enable_notifications && settings.enable_email_notifications,
+        shouldEmail: settings.enable_notifications && (process.env.enable_email_notifications)? process.env.enable_email_notifications === 'true' : false ,
         emailData: notificationData,
       });
     }
@@ -607,7 +611,7 @@ export class AppointmentService {
         visible_to_customer: true,
         visible_to_admin: false,
         branch_id: updated.branch_id,
-        shouldEmail: settings.enable_notifications && settings.enable_email_notifications,
+        shouldEmail: settings.enable_notifications && (process.env.enable_email_notifications)? process.env.enable_email_notifications === 'true' : false,
         emailData: notificationData,
       });
     }
@@ -671,7 +675,7 @@ export class AppointmentService {
       visible_to_customer: true,
       visible_to_admin: false,
       branch_id: existing.branch_id,
-      shouldEmail: settings.enable_notifications && settings.enable_email_notifications,
+      shouldEmail: settings.enable_notifications && (process.env.enable_email_notifications)? process.env.enable_email_notifications === 'true' : false,
       emailData: notificationData,
     });
 
@@ -723,7 +727,7 @@ export class AppointmentService {
       visible_to_customer: true,
       visible_to_admin: false,
       branch_id: appointment.branch_id,
-      shouldEmail: settings.enable_notifications && settings.enable_email_notifications,
+      shouldEmail: settings.enable_notifications && (process.env.enable_email_notifications)? process.env.enable_email_notifications === 'true' : false,
       emailData: notificationData,
     });
   }
@@ -834,21 +838,35 @@ export class AppointmentService {
 
     // Check if in the past
     if (startTimeUtc < now) {
-      throw new Error('Cannot book appointments in the past');
+      throw new Error(`Cannot book appointments in the past ${startTimeUtc} ${now}`);
     }
 
     // Check working hours
-    const manilaTime = new Date(start_time);
+    const manilaTime = toManilaTime(start_time);
     const timeInMinutes = manilaTime.getHours() * 60 + manilaTime.getMinutes();
     const startWorkMinutes = this.timeToMinutes(settings.start_work_hour);
     const endWorkMinutes = this.timeToMinutes(settings.end_work_hour);
 
     if (timeInMinutes < startWorkMinutes || timeInMinutes >= endWorkMinutes) {
-      throw new Error(`Appointment must be between ${settings.start_work_hour} and ${settings.end_work_hour}`);
+      throw new Error(`Appointment must be between ${settings.start_work_hour} and ${settings.end_work_hour} Manila time ${manilaTime}`);
     }
 
+    // check same day booking
+    if (!settings.allow_same_day_booking) { 
+      const today = formatDate(new Date());
+      const appointmentDate = startTimeUtc.toISOString().split('T')[0];
+      if (appointmentDate == today) {
+        throw new Error(`Cannot book appointments on the same day ${appointmentDate}`);
+      }
+
+
+    }
+
+
+
+
     // Check service
-    const {  service } = await this.supabase
+    const {data:  service } = await this.supabase
       .from('services')
       .select('duration_minutes, active')
       .eq('service_id', service_id)
@@ -863,7 +881,7 @@ export class AppointmentService {
     const endTime = new Date(startTimeUtc);
     endTime.setMinutes(endTime.getMinutes() + service.duration_minutes);
 
-    const {  overlaps } = await this.supabase
+    const {data:  overlaps } = await this.supabase
       .from('appointments')
       .select('appointment_id')
       .eq('brand_id', this.brand_id)
