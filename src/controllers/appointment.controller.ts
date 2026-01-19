@@ -84,18 +84,31 @@ export const appointmentController = {
   async getUpcoming(req: NextRequest): Promise<NextResponse> {
     try {
       const session = await getSession();
+
       if (!session.isLoggedIn || !session.brand_id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      if (!hasRole([UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN], session.role)) {
+
+      if (!hasRole(
+        [UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN],
+        session.role
+      )) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
       }
 
       const { searchParams } = new URL(req.url);
+
       const branch_id = searchParams.get('branch_id') || session.branch_id;
       if (!branch_id) {
         return NextResponse.json({ error: 'Branch ID required' }, { status: 400 });
       }
+
+      const scope = searchParams.get('scope') as any;
+      const days = searchParams.get('days')
+        ? Number(searchParams.get('days'))
+        : undefined;
+      const start_date = searchParams.get('start_date') || undefined;
+      const end_date = searchParams.get('end_date') || undefined;
 
       const service = new AppointmentService(
         session.brand_id,
@@ -104,13 +117,24 @@ export const appointmentController = {
         session.branch_id
       );
 
-      const appointments = await service.getUpcoming(branch_id);
+      const appointments = await service.getUpcoming(branch_id, {
+        scope,
+        days,
+        start_date,
+        end_date,
+      });
+
       return NextResponse.json(appointments, { status: 200 });
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('GET /appointments/upcoming error:', error);
-      return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message || 'Internal error' },
+        { status: 500 }
+      );
     }
   },
+
 
   // GET /api/appointments
   async list(req: NextRequest): Promise<NextResponse> {

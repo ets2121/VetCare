@@ -23,13 +23,13 @@ import { NotificationService } from './notification.service';
 import { NotificationData } from '@/types/email';
 
 export interface AppointmentWithRelations extends Appointment {
-  pet_name: string;
-  owner_name: string;
-  owner_email: string;
-  service_name: string;
-  branch_name: string;
-  branch_address: string;
-  staff_name: string;
+  pet_name?: string;
+  owner_name?: string;
+  owner_email?: string;
+  service_name?: string;
+  branch_name?: string;
+  branch_address?: string;
+  staff_name?: string;
 }
 
 export interface AvailableDate {
@@ -41,10 +41,42 @@ export interface AvailableDate {
   is_full: boolean;
 }
 
-export interface AvailableSlot {
-  time: string;
-  start_time: string; // ISO string in UTC
+type createAppointmentInput ={
+  pet: {
+    name: string | null | undefined;
+  };
+  created_by:{ full_name: string };
+  owner:{
+    full_name: string;
+    email: string;
+  };
+  service:{
+    name: string
+  };
+  branch:{
+    name: string;
+    address: string;
+  };
+
+
+};
+
+
+
+type AvailableSlot = {
+  start_utc: string;
+  start_local: string;
+};
+
+type UpcomingScope = 'today' | 'upcoming' | 'all' | 'range';
+
+interface UpcomingOptions {
+  scope?: UpcomingScope;
+  days?: number;
+  start_date?: string; // YYYY-MM-DD
+  end_date?: string;   // YYYY-MM-DD
 }
+
 
 export class AppointmentService {
   private supabase = createClient();
@@ -72,159 +104,235 @@ export class AppointmentService {
   /**
    * Get available dates within booking window
    */
-  async getAvailableDates(branch_id: string, service_id: string): Promise<AvailableDate[]> {
-    const settings = await this.settingsService.getBranchSettings(this.brand_id, branch_id);
-    
-    // Validate service exists and is active
-    const {data:  service } = await this.supabase
+  async getAvailableDates(
+    branch_id: string,
+    service_id: string
+  ): Promise<AvailableDate[]> {
+    const settings = await this.settingsService.getBranchSettings(
+      this.brand_id,
+      branch_id
+    );
+  
+    // 1 Validate service
+    const { data: service } = await this.supabase
       .from('services')
       .select('duration_minutes')
       .eq('service_id', service_id)
       .eq('brand_id', this.brand_id)
       .single();
-
+  
     if (!service) {
       throw new Error('Service not found');
     }
-
-    const today = new Date();
-    const startDate = new Date(today);
-    const endDate = addDays(today, settings.booking_window_days);
-    
-    const dates: AvailableDate[] = [];
-    const currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-      const dateStr = formatDate(currentDate);
-      const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
-      
-      // Check same-day booking
-      const isToday = dateStr === formatDate(today);
-      if (isToday && !settings.allow_same_day_booking) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
-      }
-
-      // Check holidays
-      const isHoliday = this.isHoliday(dateStr, settings);
-      if (isHoliday) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
-      }
-
-      // Count existing appointments
-      const { count: appointmentCount } = await this.supabase
-        .from('appointments')
-        .select('*', { count: 'exact', head: true })
-        .eq('brand_id', this.brand_id)
-        .eq('branch_id', branch_id)
-        .gte('start_time', `${dateStr}T00:00:00Z`)
-        .lt('start_time', `${addDays(currentDate, 1).toISOString().split('T')[0]}T00:00:00Z`);
-
-      const isFull = settings.max_daily_appointments !== null && 
-                    (appointmentCount || 0) >= settings.max_daily_appointments;
-
-      dates.push({
-        date: dateStr,
-        day_of_week: dayOfWeek,
-        slots_available:(settings.max_daily_appointments || 0) - (appointmentCount || 0),//isFull ? 0 : this.calculateAvailableSlots(service.duration_minutes,settings.max_daily_appointments - settings),
-        is_today: isToday,
-        is_holiday: isHoliday,
-        is_full: isFull,
-      });
-
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return dates;
-  }
-
-  /**
-   * Get available slots for a specific date
-   */
-  async getAvailableSlots(branch_id: string, service_id: string, date: string): Promise<AvailableSlot[]> {
-    const settings = await this.settingsService.getBranchSettings(this.brand_id, branch_id);
-    
-    // Validate date
-    const today = formatDate(new Date());
-    if (date < today) {
-      throw new Error('Cannot book past dates');
-    }
-
-    // Validate service
-    const {data: service } = await this.supabase
-      .from('services')
-      .select('duration_minutes')
-      .eq('service_id', service_id)
-      .eq('brand_id', this.brand_id)
-      .single();
-
-    if (!service) {
-      throw new Error('Service not found');
-    }
-
-    // Check same-day booking
-    if (date === today && !settings.allow_same_day_booking) {
-      throw new Error('Same-day booking is not allowed');
-    }
-
-    // Check holidays
-    if (this.isHoliday(date, settings)) {
-      throw new Error('Selected date is a holiday');
-    }
-
-    // Generate all possible slots
-    const slots = this.generateSlotsForDay(settings, service.duration_minutes);
-    const availableSlots: AvailableSlot[] = [];
-
-    // Get booked slots
-    const startDate = new Date(`${date}T00:00:00Z`);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 1);
-
-    const {data: bookedAppointments } = await this.supabase
+  
+    const today = toManilaTime(new Date().toISOString());
+    const todayStr = formatDate(today);
+  
+    const windowStart = new Date(today);
+    const windowEnd = addDays(today, settings.booking_window_days);
+  
+    // 2️⃣ Fetch ALL relevant appointments ONCE
+    const { data: appointments = [] } = await this.supabase
       .from('appointments')
       .select('start_time, end_time')
       .eq('brand_id', this.brand_id)
       .eq('branch_id', branch_id)
-      .gte('start_time', startDate.toISOString())
-      .lt('start_time', endDate.toISOString());
-
-    // Filter available slots
-    for (const slot of slots) {
-      const slotStart = new Date(`${date}T${slot}:00${settings.timezone_offset}`);
-      const slotEnd = new Date(slotStart);
-      slotEnd.setMinutes(slotEnd.getMinutes() + service.duration_minutes);
-
-      // Check overlap with booked appointments
-      const isBooked = bookedAppointments.some(app => {
-        const appStart = new Date(app.start_time);
-        const appEnd = new Date(app.end_time);
-        return slotStart < appEnd && appStart < slotEnd;
+      .neq('status', 'CANCELED')
+      .gte('start_time', windowStart.toISOString())
+      .lt('start_time', addDays(windowEnd, 1).toISOString());
+  
+    const results: AvailableDate[] = [];
+    const current = new Date(windowStart);
+  
+    while (current <= windowEnd) {
+      const dateStr = formatDate(current);
+      const isToday = dateStr === todayStr;
+      const dayOfWeek = current.toLocaleDateString('en-US', {
+        weekday: 'long',
       });
+  
+      // 3️⃣ Hard blockers
+      if (isToday && !settings.allow_same_day_booking) {
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
+  
+      if (this.isHoliday(dateStr, settings)) {
+        results.push({
+          date: dateStr,
+          day_of_week: dayOfWeek,
+          is_today: isToday,
+          is_holiday: true,
+          is_available: false,
+          total_available_slots: 0,
+        });
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
+  
+      // 4️⃣ Generate theoretical slots for the day
+      const slotTimes = this.generateSlotsForDay(
+        settings,
+        service.duration_minutes
+      );
+  
+      let availableSlotCount = 0;
+  
+      // 5️⃣ Evaluate slots realistically
+      for (const time of slotTimes) {
+        const slotStart = new Date(
+          `${dateStr}T${time}:00${settings.timezone_offset}`
+        );
+        const slotEnd = new Date(slotStart);
+        slotEnd.setMinutes(
+          slotEnd.getMinutes() + service.duration_minutes
+        );
+  
+        // Overlap check
+        const overlaps = appointments.some((app) => {
+          const appStart = new Date(app.start_time);
+          const appEnd = new Date(app.end_time);
+          return slotStart < appEnd && appStart < slotEnd;
+        });
+  
+        if (!overlaps) {
+          availableSlotCount++;
+        }
+      }
+  
+      results.push({
+        date: dateStr,
+        day_of_week: dayOfWeek,
+        is_today: isToday,
+        is_holiday: false,
+        is_available: availableSlotCount > 0,
+        total_available_slots: availableSlotCount,
+      });
+  
+      current.setDate(current.getDate() + 1);
+    }
+  
+    return results;
+  }
+  
 
-      // Check daily quota
-      const { count: currentBookings } = await this.supabase
+  /**
+   * Get available slots for a specific date
+   */
+  async getAvailableSlots(
+    branch_id: string,
+    service_id: string,
+    date: string
+  ): Promise<AvailableSlot[]> {
+  
+    const settings = await this.settingsService.getBranchSettings(
+      this.brand_id,
+      branch_id
+    );
+  
+    const today = formatDate(new Date());
+    if (date < today) throw new Error('Cannot book past dates');
+  
+    const { data: service } = await this.supabase
+      .from('services')
+      .select('duration_minutes')
+      .eq('service_id', service_id)
+      .eq('brand_id', this.brand_id)
+      .single();
+  
+    if (!service) throw new Error('Service not found');
+  
+    if (date === today && !settings.allow_same_day_booking) {
+      throw new Error('Same-day booking is not allowed');
+    }
+  
+    if (this.isHoliday(date, settings)) {
+      throw new Error('Selected date is a holiday');
+    }
+  
+    // 🔹 Branch working hours (LOCAL)
+    const branchStart = new Date(
+      `${date}T${settings.start_work_hour}${settings.timezone_offset}`
+    );
+    const branchEnd = new Date(
+      `${date}T${settings.end_work_hour}${settings.timezone_offset}`
+    );
+  
+    // 🔹 Fetch appointments ONCE
+    const dayStartUTC = new Date(`${date}T00:00:00Z`);
+    const dayEndUTC = this.addMinutes(dayStartUTC, 1440);
+  
+    const { data: appointments = [] } = await this.supabase
+      .from('appointments')
+      .select('start_time, end_time')
+      .eq('brand_id', this.brand_id)
+      .eq('branch_id', branch_id)
+      .neq('status', 'CANCELED')
+      .gte('start_time', dayStartUTC.toISOString())
+      .lt('start_time', dayEndUTC.toISOString());
+  
+    const booked = appointments?.map(a => ({
+      start: new Date(a.start_time),
+      end: new Date(a.end_time),
+    }));
+  
+    // 🔹 Daily quota check (ONCE)
+    let quotaExceeded = false;
+    if (settings.max_daily_appointments !== null) {
+      const { count } = await this.supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .eq('brand_id', this.brand_id)
         .eq('branch_id', branch_id)
-        .gte('start_time', `${date}T00:00:00Z`)
-        .lt('start_time', `${addDays(new Date(date), 1).toISOString().split('T')[0]}T00:00:00Z`);
-
-      const quotaExceeded = settings.max_daily_appointments !== null && 
-                           (currentBookings || 0) >= settings.max_daily_appointments;
-
-      if (!isBooked && !quotaExceeded) {
-        availableSlots.push({
-          time: slot,
-          start_time: slotStart.toISOString(),
+        .neq('status', 'CANCELED')
+        .gte('start_time', dayStartUTC.toISOString())
+        .lt('start_time', dayEndUTC.toISOString());
+  
+      quotaExceeded = (count || 0) >= settings.max_daily_appointments;
+    }
+  
+    if (quotaExceeded) return [];
+  
+    // 🔹 SLOT GENERATION (SERVICE-AWARE)
+    const available: AvailableSlot[] = [];
+    let cursor = new Date(branchStart);
+  
+    while (true) {
+      const slotStart = new Date(cursor);
+      const slotEnd = this.addMinutes(
+        slotStart,
+        service.duration_minutes
+      );
+  
+      if (slotEnd > branchEnd) break;
+  
+      const withGapEnd = this.addMinutes(
+        slotEnd,
+        settings.appointment_gap_minutes
+      );
+  
+      const conflict = booked?.some(b =>
+        this.overlaps(slotStart, withGapEnd, b.start, b.end)
+      );
+  
+      if (!conflict) {
+        available.push({
+          start_utc: slotStart.toISOString(),
+          start_local: this.formatAMPM(toManilaTime(slotStart.toISOString())),
+          
         });
       }
+  
+      cursor = this.addMinutes(cursor, settings.slot_interval_minutes);
     }
-
-    return availableSlots;
+  
+    return available.sort(
+      (a, b) =>
+        new Date(a.start_utc).getTime() -
+        new Date(b.start_utc).getTime()
+    );
   }
+  
 
   /**
    * Create a new appointment
@@ -320,34 +428,27 @@ export class AppointmentService {
       .single();
 
     if (error) throw error;
-
+    
     const appointment = {
       ...data,
-      pet_name: data.pet.name,
-      owner_name: data.owner.full_name || 'Unknown',
-      owner_email: data.owner.email,
-      service_name: data.service.name,
-      branch_name: data.branch.name,
-      branch_address: data.branch.address,
-      staff_name: data.created_by.full_name || 'Staff',
-    } as AppointmentWithRelations;
+    
+    } as typeof data;
 
-    // Auto-create passport entry if required
-    if (settings.require_pet_record) {
-      await this.createPassportEntryIfMissing(pet_id, branch_id);
-    }
+    const NotifData: createAppointmentInput = data;
+
+  
 
     // Prepare notification data
     const notificationData: NotificationData = {
       appointment_id: appointment.appointment_id,
-      pet_name: appointment.pet_name,
-      owner_name: appointment.owner_name,
-      owner_email: appointment.owner_email,
-      service_name: appointment.service_name,
+      pet_name: NotifData.pet.name,
+      owner_name: NotifData.owner.full_name,
+      owner_email: NotifData.owner.email || 'no email',
+      service_name: NotifData.service.name || "no service name",
       start_time: appointment.start_time,
-      branch_name: appointment.branch_name,
-      branch_address: appointment.branch_address,
-      custom_message: settings.booking_confirmation_message || undefined,
+      branch_name: NotifData.branch.name || "no branch name",
+      branch_address: NotifData.branch.address || "no branch address",
+      custom_message: settings.booking_confirmation_message || "",
       currency: settings.currency,
     };
 
@@ -360,15 +461,15 @@ export class AppointmentService {
         .select('user_id')
         .eq('brand_id', this.brand_id)
         .eq('branch_id', branch_id)
-        .in('role', ['ADMIN', 'STAFF'])
+        .in('role', ['ADMIN'])
         .limit(1);
 
-      if (staffUsers.length > 0) {
+      if (staffUsers && staffUsers.length > 0) {
         await this.notificationService.create({
           user_id: staffUsers[0].user_id,
           notification_type: NotificationType.APPOINTMENT,
           title: 'New Appointment Request',
-          message: `${appointment.owner_name} requested ${appointment.service_name} for ${appointment.pet_name}`,
+          message: `${NotifData.owner.full_name} requested ${NotifData.service.name} for ${NotifData.pet.name}`,
           link_url: `/appointments/${appointment.appointment_id}`,
           visible_to_admin: true,
           visible_to_customer: false,
@@ -385,7 +486,7 @@ export class AppointmentService {
         sender_id: this.user_id,
         notification_type: NotificationType.APPOINTMENT,
         title: 'Appointment Confirmed',
-        message: `Your ${appointment.service_name} is confirmed for ${formatManilaDateTime(appointment.start_time)}`,
+        message: `Your ${NotifData.service.name} is confirmed for ${formatManilaDateTime(appointment.start_time)}`,
         link_url: `/appointments/${appointment.appointment_id}`,
         visible_to_customer: true,
         visible_to_admin: false,
@@ -437,6 +538,7 @@ export class AppointmentService {
 
     const { data, error } = await query.order('start_time', { ascending: true });
     if (error) throw error;
+    
 
     return data.map(a => ({
       ...a,
@@ -529,7 +631,7 @@ export class AppointmentService {
       
       // Update end_time if service changed
       if (input.service_id) {
-        const {  service } = await this.supabase
+        const {data: service } = await this.supabase
           .from('services')
           .select('duration_minutes')
           .eq('service_id', newServiceId)
@@ -574,6 +676,8 @@ export class AppointmentService {
 
     if (error) throw error;
 
+     
+
     const updated = {
       ...data,
       pet_name: data.pet.name,
@@ -600,6 +704,10 @@ export class AppointmentService {
         custom_message: settings.booking_confirmation_message || undefined,
         currency: settings.currency,
       };
+
+ // Auto-create passport entry if required
+  await this.createPassportEntryIfMissing(data.pet_id, data.branch_id);
+
 
       await this.notificationService.create({
         user_id: updated.owner_id,
@@ -735,52 +843,113 @@ export class AppointmentService {
   /**
    * Get upcoming appointments for admin dashboard
    */
-  async getUpcoming(branch_id: string): Promise<AppointmentWithRelations[]> {
-    const startDate = new Date();
-    const endDate = addDays(startDate, 7); // Next 7 days
+ 
 
-    const { data, error } = await this.supabase
-      .from('appointments')
-      .select(`
-        appointment_id,
-        brand_id,
-        branch_id,
-        pet_id,
-        owner_id,
-        service_id,
-        start_time,
-        end_time,
-        status,
-        payment_status,
-        notes,
-        created_by,
-        created_at,
-        updated_at,
-        pet: pets!inner(name),
-        owner: users!owner_id(full_name, email, phone),
-        service: services!inner(name),
-        branch: branches!inner(name, address),
-        staff: users!created_by(full_name)
-      `)
-      .eq('brand_id', this.brand_id)
-      .eq('branch_id', branch_id)
-      .gte('start_time', startDate.toISOString())
-      .lte('start_time', endDate.toISOString())
-      .order('start_time', { ascending: true });
+async getUpcoming(
+  branch_id: string,
+  options: UpcomingOptions = {}
+): Promise<AppointmentWithRelations[]> {
+  const {
+    scope = 'upcoming',
+    days = 7,
+    start_date,
+    end_date,
+  } = options;
 
-    if (error) throw error;
+  const now = new Date();
 
-    return data.map(a => ({
-      ...a,
-      pet_name: a.pet.name,
-      owner_name: a.owner.full_name || 'Unknown',
-      owner_email: a.owner.email,
-      service_name: a.service.name,
-      branch_name: a.branch.name,
-      branch_address: a.branch.address,
-      staff_name: a.staff.full_name || 'Staff',
-    })) as AppointmentWithRelations[];
+  let startTime: Date | null = null;
+  let endTime: Date | null = null;
+
+  switch (scope) {
+    case 'today': {
+      startTime = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0, 0, 0
+      ));
+      endTime = new Date(startTime);
+      endTime.setUTCDate(endTime.getUTCDate() + 1);
+      break;
+    }
+
+    case 'upcoming': {
+      startTime = now;
+      endTime = new Date(now);
+      endTime.setUTCDate(endTime.getUTCDate() + days);
+      break;
+    }
+
+    case 'all': {
+      startTime = now;
+      endTime = null;
+      break;
+    }
+
+    case 'range': {
+      if (!start_date || !end_date) {
+        throw new Error('start_date and end_date are required for range scope');
+      }
+
+      startTime = new Date(`${start_date}T00:00:00.000Z`);
+      endTime = new Date(`${end_date}T23:59:59.999Z`);
+      break;
+    }
   }
+
+  let query = this.supabase
+    .from('appointments')
+    .select(`
+      appointment_id,
+      brand_id,
+      branch_id,
+      pet_id,
+      owner_id,
+      service_id,
+      start_time,
+      end_time,
+      status,
+      payment_status,
+      notes,
+      created_by,
+      created_at,
+      updated_at,
+      pet: pets!inner(name),
+      owner: users!owner_id(full_name, email, phone),
+      service: services!inner(name),
+      branch: branches!inner(name, address),
+      staff: users!created_by(full_name)
+    `)
+    .eq('brand_id', this.brand_id)
+    .eq('branch_id', branch_id)
+    .eq('status', 'CONFIRMED')
+    .order('start_time', { ascending: true });
+
+  if (startTime) {
+    query = query.gte('start_time', startTime.toISOString());
+  }
+
+  if (endTime) {
+    query = query.lte('start_time', endTime.toISOString());
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  return (data || []).map(a => ({
+    ...a,
+    pet_name: a.pet.name,
+    owner_name: a.owner.full_name || 'Unknown',
+    owner_email: a.owner.email,
+    service_name: a.service.name,
+    branch_name: a.branch.name,
+    branch_address: a.branch.address,
+    staff_name: a.staff.full_name || 'Staff',
+  })) as AppointmentWithRelations[];
+}
+
 
   // --- PRIVATE HELPERS ---
 
@@ -805,6 +974,24 @@ export class AppointmentService {
     return Math.floor((endMinutes - startMinutes) / slotLength);
   }
 
+  private addMinutes(date: Date, mins: number) {
+    return new Date(date.getTime() + mins * 60000);
+  }
+  
+  private formatAMPM(date: Date): string {
+    let h = date.getHours();
+    const m = date.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  }
+  
+  private overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+    return aStart < bEnd && aEnd > bStart;
+  }
+  
+
+
   private generateSlotsForDay(settings: BranchSettings, duration: number): string[] {
     const startMinutes = this.timeToMinutes(settings.start_work_hour);
     const endMinutes = this.timeToMinutes(settings.end_work_hour);
@@ -812,7 +999,7 @@ export class AppointmentService {
     const interval = settings.slot_interval_minutes;
     const slots: string[] = [];
 
-    for (let mins = startMinutes; mins + duration <= endMinutes; mins += interval) {
+    for (let mins = startMinutes; mins + duration <= endMinutes; mins += slotLength) {
       const hours = Math.floor(mins / 60);
       const minutes = mins % 60;
       slots.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
@@ -832,82 +1019,140 @@ export class AppointmentService {
     service_id: string,
     start_time: string
   ) {
-    // Convert to UTC for comparison
-    const startTimeUtc = toUtc(start_time);
-    const now = new Date();
-
-    // Check if in the past
-    if (startTimeUtc < now) {
-      throw new Error(`Cannot book appointments in the past ${startTimeUtc} ${now}`);
+    /**
+     * 1️⃣ Normalize time (SINGLE source of truth)
+     */
+    const startUTC = new Date(start_time);
+    if (isNaN(startUTC.getTime())) {
+      throw new Error('Invalid start_time format');
     }
-
-    // Check working hours
-    const manilaTime = toManilaTime(start_time);
-    const timeInMinutes = manilaTime.getHours() * 60 + manilaTime.getMinutes();
+  
+    const startLocal = toManilaTime(startUTC);
+    const nowUTC = new Date();
+  
+    /**
+     * 2️⃣ Fail fast: past booking
+     */
+    if (startUTC <= nowUTC) {
+      throw new Error('Cannot book appointments in the past');
+    }
+  
+    /**
+     * 3️⃣ Booking window & same-day rule
+     */
+    const todayLocal = formatDate(toManilaTime(nowUTC));
+    const appointmentDateLocal = formatDate(startLocal);
+  
+    if (!settings.allow_same_day_booking && appointmentDateLocal === todayLocal) {
+      throw new Error('Same-day booking is not allowed');
+    }
+  
+    const maxDate = addDays(
+      new Date(todayLocal),
+      settings.booking_window_days
+    );
+    if (new Date(appointmentDateLocal) > maxDate) {
+      throw new Error('Booking date exceeds allowed booking window');
+    }
+  
+    /**
+     * 4️⃣ Holiday check
+     */
+    if (this.isHoliday(appointmentDateLocal, settings)) {
+      throw new Error('Selected date is a holiday');
+    }
+  
+    /**
+     * 5️⃣ Working hours check (LOCAL TIME)
+     */
+    const minutes =
+      startLocal.getHours() * 60 + startLocal.getMinutes();
+  
     const startWorkMinutes = this.timeToMinutes(settings.start_work_hour);
     const endWorkMinutes = this.timeToMinutes(settings.end_work_hour);
-
-    if (timeInMinutes < startWorkMinutes || timeInMinutes >= endWorkMinutes) {
-      throw new Error(`Appointment must be between ${settings.start_work_hour} and ${settings.end_work_hour} Manila time ${manilaTime}`);
+  
+    if (
+      minutes < startWorkMinutes ||
+      minutes >= endWorkMinutes
+    ) {
+      throw new Error(
+        `Appointment must be between ${settings.start_work_hour} and ${settings.end_work_hour} (Manila time)`
+      );
     }
-
-    // check same day booking
-    if (!settings.allow_same_day_booking) { 
-      const today = formatDate(new Date());
-      const appointmentDate = startTimeUtc.toISOString().split('T')[0];
-      if (appointmentDate == today) {
-        throw new Error(`Cannot book appointments on the same day ${appointmentDate}`);
-      }
-
-
-    }
-
-
-
-
-    // Check service
-    const {data:  service } = await this.supabase
+  
+    /**
+     * 6️⃣ Validate service
+     */
+    const { data: service } = await this.supabase
       .from('services')
       .select('duration_minutes, active')
       .eq('service_id', service_id)
       .eq('brand_id', this.brand_id)
       .single();
-
+  
     if (!service || !service.active) {
       throw new Error('Service is inactive or not found');
     }
-
-    // Check overlap
-    const endTime = new Date(startTimeUtc);
-    endTime.setMinutes(endTime.getMinutes() + service.duration_minutes);
-
-    const {data:  overlaps } = await this.supabase
+  
+    /**
+     * 7️⃣ Compute end time
+     */
+    const endUTC = new Date(startUTC);
+    endUTC.setMinutes(
+      endUTC.getMinutes() + service.duration_minutes
+    );
+  
+    /**
+     * 8️⃣ Ensure service fits working hours
+     */
+    const endLocal = toManilaTime(endUTC);
+    const endMinutes =
+      endLocal.getHours() * 60 + endLocal.getMinutes();
+  
+    if (endMinutes > endWorkMinutes) {
+      throw new Error('Service duration exceeds working hours');
+    }
+  
+    /**
+     * 9️⃣ Overlap check (EXCLUDES CANCELED)
+     */
+    const { data: overlaps = [] } = await this.supabase
       .from('appointments')
       .select('appointment_id')
       .eq('brand_id', this.brand_id)
       .eq('branch_id', branch_id)
-      .lt('start_time', endTime.toISOString())
-      .gt('end_time', startTimeUtc.toISOString());
-
+      .neq('status', 'CANCELED')
+      .lt('start_time', endUTC.toISOString())
+      .gt('end_time', startUTC.toISOString());
+  
     if (overlaps.length > 0) {
-      throw new Error('Time slot is already booked');
+      throw new Error('Selected time slot is already booked');
     }
-
-    // Check daily quota
-    const appointmentDate = startTimeUtc.toISOString().split('T')[0];
-    const { count: currentBookings } = await this.supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('brand_id', this.brand_id)
-      .eq('branch_id', branch_id)
-      .gte('start_time', `${appointmentDate}T00:00:00Z`)
-      .lt('start_time', `${addDays(new Date(appointmentDate), 1).toISOString().split('T')[0]}T00:00:00Z`);
-
-    if (settings.max_daily_appointments !== null && 
-        (currentBookings || 0) >= settings.max_daily_appointments) {
-      throw new Error('Daily appointment limit reached');
+  
+    /**
+     * 🔟 Daily quota check
+     */
+    if (settings.max_daily_appointments !== null) {
+      const dayStartUTC = new Date(
+        `${appointmentDateLocal}T00:00:00${settings.timezone_offset}`
+      );
+      const dayEndUTC = addDays(dayStartUTC, 1);
+  
+      const { count } = await this.supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true })
+        .eq('brand_id', this.brand_id)
+        .eq('branch_id', branch_id)
+        .neq('status', 'CANCELED')
+        .gte('start_time', dayStartUTC.toISOString())
+        .lt('start_time', dayEndUTC.toISOString());
+  
+      if ((count || 0) >= settings.max_daily_appointments) {
+        throw new Error('Daily appointment limit reached');
+      }
     }
   }
+  
 
   private async createPassportEntryIfMissing(pet_id: string, branch_id: string): Promise<void> {
     const { count } = await this.supabase
